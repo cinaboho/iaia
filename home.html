@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+
+</head>
+
+<body>
+    
+    
+    <div class="player" style="width:100%;">
+        <!-- <div class="track-info">
+            <div class="title">Title</div>
+            <div class="artist">Artist</div>
+        </div> -->
+
+        
+
+        <div class="shadow-lg p-3 mb-5 bg-body-tertiary rounded" style="width:40%;">
+            <div class="controls">
+                <button class="play-pause">Play</button>
+                
+                <input type="file" class="audio-input" accept=".wav">
+
+
+                
+                    <div class="timeline "></div>
+                <input type="range" class="seek-bar" min="0" max="100" value="0">
+                <input type="range" class="volume-bar" min="0" max="100" value="50">
+            </div>
+        </div>
+
+        <div class="playlist">
+            <ol id="audio-list"></ol>
+        </div>
+    </div>
+    <style>
+        body{
+            padding: 30px;
+            background-color: black;
+        }
+        .player {
+            width: 300px;
+            margin: 0 auto;
+        }
+
+        .track-info,
+        .controls,
+        .playlist {
+            padding: 10px;
+        }
+
+        .play-pause {
+            margin-right: 10px;
+        }
+
+        .timeline {
+            height: 5px;
+            background-color: #ccc;
+            margin: 10px 0;
+        }
+
+        .seek-bar,
+        .volume-bar {
+            width: 100%;
+        }
+        #audio-list {
+        color: white;
+        border: 2px solid #ccc; /* Añadido: Borde para la lista de reproducción */
+        padding: 10px;
+        border-radius: 5px; /* Añadido: Bordes redondeados */
+        list-style: none; /* Añadido: Elimina los puntos de la lista */
+    }
+
+    #audio-list li {
+        margin: 5px 0;
+        padding: 8px;
+        cursor: pointer;
+        transition: background-color 0.3s ease; /* Añadido: Transición de color al pasar el ratón */
+    }
+
+    #audio-list li:hover {
+        background-color: #333; /* Añadido: Color de fondo al pasar el ratón */
+    }
+
+        /* Estilo para el elemento seleccionado en la lista de reproducción */
+        .playlist li.selected {
+            background-color: #005CC8;
+        }
+    </style>
+    <script>
+        // Crear instancia de reproductor
+        const audioPlayer = new Audio();
+        let currentPlayingItem = null;
+
+        // Funciones para controlar el reproductor
+        function playPause() {
+            if (audioPlayer.paused) {
+                audioPlayer.play();
+            } else {
+                audioPlayer.pause();
+            }
+        }
+
+        function seek(value) {
+            audioPlayer.currentTime = audioPlayer.duration * (value / 100);
+        }
+
+        function setVolume(value) {
+            audioPlayer.volume = value / 100;
+        }
+
+        // Función para cargar y reproducir un archivo de audio
+        function playAudio(file, listItem) {
+            const audioFilePath = 'Audios/Anciano/' + file;
+            audioPlayer.src = audioFilePath;
+            audioPlayer.play();
+
+            // Resaltar el elemento seleccionado
+            if (currentPlayingItem) {
+                currentPlayingItem.classList.remove('selected');
+            }
+            listItem.classList.add('selected');
+            currentPlayingItem = listItem;
+
+            // Actualizar el nombre del título
+            //document.querySelector('.title').textContent = file;
+        }
+
+        // Función para cargar un archivo de audio desde la lista de reproducción
+        function loadAndPlayAudio(event) {
+            const fileName = event.target.textContent;
+            playAudio(fileName, event.target);
+        }
+
+        // Función para cargar un archivo de audio desde la entrada de archivos y reproducirlo
+        function loadAndPlayFromInput(file) {
+            playAudio(file.name, null);
+        }
+
+        // Actualizar la posición de la línea de tiempo y seek-bar
+        function updateTimeline() {
+            const timeline = document.querySelector('.timeline');
+            const seekBar = document.querySelector('.seek-bar');
+            const percentage = (audioPlayer.currentTime / audioPlayer.duration) * 100;
+            timeline.style.width = `${percentage}%`;
+            seekBar.value = percentage;
+        }
+
+        // Escuchar eventos del reproductor
+        audioPlayer.addEventListener('ended', () => {
+            // Cambiar a la siguiente canción en la lista de reproducción
+            document.querySelector('.seek-bar').value = 100;
+            document.querySelector('.timeline').style.width = '100%';
+        });
+
+        // Actualizar la línea de tiempo y seek-bar mientras se reproduce el audio
+        audioPlayer.addEventListener('timeupdate', updateTimeline);
+
+        // Conectar los botones y controles del reproductor con las funciones de JavaScript
+        document.querySelector('.play-pause').addEventListener('click', playPause);
+        document.querySelector('.seek-bar').addEventListener('input', (e) => seek(e.target.value));
+        document.querySelector('.volume-bar').addEventListener('input', (e) => setVolume(e.target.value));
+
+        // Manejar el cambio de archivo de audio desde la entrada de archivos
+        document.querySelector('.audio-input').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                loadAndPlayFromInput(file);
+            }
+        });
+
+        // Obtener la lista de reproducción al cargar la página
+        window.onload = getAudioList;
+
+        function getAudioList() {
+            const audioListElement = document.getElementById('audio-list');
+
+            // Ruta de la carpeta de audios
+            const audioFolderPath = 'Audios/Anciano/';
+
+            // Hacer una solicitud fetch para obtener la lista de archivos
+            fetch(`list_files.php?dir=${audioFolderPath}`)
+                .then(response => response.json())
+                .then(files => {
+                    // Limpiar la lista actual
+                    audioListElement.innerHTML = '';
+
+                    // Agregar cada archivo a la lista de reproducción
+                    files.forEach(file => {
+                        const listItem = document.createElement('li');
+                        listItem.textContent = file;
+                        listItem.addEventListener('click', loadAndPlayAudio);
+                        audioListElement.appendChild(listItem);
+                    });
+                })
+                .catch(error => console.error('Error fetching audio list:', error));
+        }
+    </script>
+   <script>
+    // ... (Tu código del reproductor de audio)
+  
+    // Añade el código de la animación
+    let angles;
+    let nrOfWalkers;
+    let walkers;
+    let stepSize;
+    let w;
+    let h;
+  
+    function setup() {
+      nrOfWalkers = 50;
+      angles = [0, PI / 2, PI, 3 * PI / 2];
+      stepSize = 8;
+      setWidthAndHeigt();
+  
+      walkers = [];
+      for (let i = 0; i < nrOfWalkers; i++) {
+        let walker = new Walker(stepSize);
+        walkers.push(walker);
+      }
+  
+      createCanvas(w, h);
+      strokeWeight(2);
+      colorMode(HSL);
+    }
+  
+    function draw() {
+      background("black");
+      walkers.forEach(w => w.walk());
+    }
+  
+    function windowResized() {
+      setWidthAndHeigt();
+      resizeCanvas(w, h);
+    }
+  
+    function setWidthAndHeigt() {
+      w = round(windowWidth / stepSize) * stepSize;
+      h = round(windowHeight / stepSize) * stepSize;
+    }
+  </script>
+  
+
+   
+</html>
